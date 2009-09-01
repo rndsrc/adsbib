@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+
+$aux = ($#ARGV >= 0) ? "$ARGV[0]" : "ms";
+$bib = ($#ARGV >= 1) ? "$ARGV[1]" : $aux;
+
+open AUX, "< $aux.aux";
+while(<AUX>) {
+    if ($_ =~ m/\\citation\{/i) {
+	foreach (split(',', substr($_, 10, -2))) {
+	    push @code, $_
+		if $_ =~ m/(\d{4}\D\S{13}[A-Z.:])/i;
+	}
+    }
+}
+close AUX;
+
+$server = 'adsabs.harvard.edu';
+$script = 'cgi-bin/nph-bib_query';
+$opt{data_type}   = 'BIBTEX';
+$opt{db_key}      = 'ALL';
+$opt{nocookieset} = '1';
+
+$url  = "http://$server/$script?";
+$url .= "$_=$opt{$_}&" foreach keys %opt;
+$url .= "bibcode=";
+$url .= "$_&" foreach @code;
+
+use LWP::Simple;
+$all = get $url;
+die "ERROR: Couldn't get bibTeX data\n" unless defined $all;
+@line = split('\n', $all);
+
+open BIB, "> $bib.bib";
+$head = '% ';
+foreach (@line) {
+    $_ =~ s/\ \&/\ \\and/g;
+    print BIB "$head$_\n";
+    $head = '' if $_ =~ m/^Retrieved/;
+}
+close BIB;
