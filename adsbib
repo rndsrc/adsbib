@@ -3,8 +3,10 @@
 $aux = ($#ARGV >= 0) ? "$ARGV[0]" : "ms";
 $bib = ($#ARGV >= 1) ? "$ARGV[1]" : $aux;
 
+print "`adsbib` is creating a BibTeX database for \"$aux.tex\":\n";
+
 open AUX, "< $aux.aux";
-while(<AUX>) {
+while (<AUX>) {
     if ($_ =~ m/\\citation\{/i) {
 	foreach (split(',', substr($_, 10, -2))) {
 	    push @code, $_
@@ -13,6 +15,18 @@ while(<AUX>) {
     }
 }
 close AUX;
+
+use List::MoreUtils qw/ uniq /;
+@ucode = uniq sort @code;
+
+$count = 0;
+foreach (@ucode) {
+    if (system("grep '\{$_,' my.bib 2> /dev/null")) {
+	printf "%4d. %s\n", ++$count, $_;
+    } else {
+	splice @ucode, $count, 1;
+   }
+}
 
 $server = 'adsabs.harvard.edu';
 $script = 'cgi-bin/nph-bib_query';
@@ -23,7 +37,7 @@ $opt{nocookieset} = '1';
 $url  = "http://$server/$script?";
 $url .= "$_=$opt{$_}&" foreach keys %opt;
 $url .= "bibcode=";
-$url .= "$_&" foreach @code;
+$url .= "$_&" foreach @ucode;
 
 use LWP::Simple;
 $all = get $url;
@@ -35,6 +49,8 @@ $head = '% ';
 foreach (@line) {
     $_ =~ s/\ \&/\ \\and/g;
     print BIB "$head$_\n";
-    $head = '' if $_ =~ m/^Retrieved/;
+    if ($_ =~ m/^Retrieved/) {
+	$head = '';
+    }
 }
 close BIB;
