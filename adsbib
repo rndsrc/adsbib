@@ -16,7 +16,7 @@ ckcmd jq
 
 # Simple argument check
 if [ $# -ne 1 ]; then
-	echo "usage: $0 <doc.aux>"
+	echo "usage: $0 <doc>.aux"
 	exit 0
 fi
 
