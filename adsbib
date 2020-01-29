@@ -1,56 +1,31 @@
-#!/usr/bin/perl
+#!/usr/bin/env bash
 
-$aux = ($#ARGV >= 0) ? "$ARGV[0]" : "ms";
-$bib = ($#ARGV >= 1) ? "$ARGV[1]" : $aux;
+SEDCMD='s/\\citation{\(.*\)}/\1/p'
+KEYPAT='^[0-9]\{4\}[A-Za-z][&.0-9A-Za-z]\{12\}[0-9][A-Z]$'
 
-print "`adsbib` is creating a BibTeX database for \"$aux.tex\":\n";
+if [ $# -ne 1 ]; then
+	echo "usage: $0 <doc.aux>"
+	exit 0
+fi
 
-open AUX, "< $aux.aux";
-while (<AUX>) {
-    if ($_ =~ m/\\citation\{/i) {
-	foreach (split(',', substr($_, 10, -2))) {
-	    push @code, $_
-		if $_ =~ m/(\d{4}\D\S{13}[A-Z.:])/i;
-	}
-    }
-}
-close AUX;
+NAME=${1%.aux}
+ADSKEY=${ADSKEY:-$(head -n1 ~/.adsbibrc)}
 
-use List::MoreUtils qw/ uniq /;
-@ucode = uniq sort @code;
+sed -n "${SEDCMD}" "${NAME}.aux" | tr ',' '\n' | sort | uniq > "${NAME}.tmp"
+if [ -f ${NAME}.map ]; then
+	for key in $(grep -v "${KEYPAT}" "${NAME}.tmp"); do
+		grep "^${key}\t" "${NAME}.map" | cut -f 2
+	done > "${NAME}.tmp2"
+	KEYS=$(grep -h "${KEYPAT}" "${NAME}.tmp" "${NAME}.tmp2" | sort | uniq | sed 's/^\(.*\)$/"\1"/')
+else
+	KEYS=$(grep "${KEYPAT}" "${NAME}.tmp" | sed 's/^\(.*\)$/"\1"/')
+fi
+rm -f "${NAME}.tmp" "${NAME}.tmp2"
 
-$count = 0;
-foreach (@ucode) {
-    if (system("grep '\{$_,' my.bib 2> /dev/null")) {
-	printf "%4d. %s\n", ++$count, $_;
-    } else {
-	splice @ucode, $count, 1;
-   }
-}
-
-$server = 'adsabs.harvard.edu';
-$script = 'cgi-bin/nph-bib_query';
-$opt{data_type}   = 'BIBTEX';
-$opt{db_key}      = 'ALL';
-$opt{nocookieset} = '1';
-
-$url  = "http://$server/$script?";
-$url .= "$_=$opt{$_}&" foreach keys %opt;
-$url .= "bibcode=";
-$url .= "$_&" foreach @ucode;
-
-use LWP::Simple;
-$all = get $url;
-die "ERROR: Couldn't get bibTeX data\n" unless defined $all;
-@line = split('\n', $all);
-
-open BIB, "> $bib.bib";
-$head = '% ';
-foreach (@line) {
-    $_ =~ s/\ \&/\ \\and/g;
-    print BIB "$head$_\n";
-    if ($_ =~ m/^Retrieved/) {
-	$head = '';
-    }
-}
-close BIB;
+KEYS=$(echo $KEYS | tr ' ' ',')
+curl	-H "Authorization: Bearer:${ADSKEY}"                 \
+	-H 'Content-Type: application/json'                  \
+	   'https://api.adsabs.harvard.edu/v1/export/bibtex' \
+	-X POST                                              \
+	-d "{\"bibcode\": [${KEYS}]}"                       |\
+jq -r '.export' > "${NAME}.bib"
