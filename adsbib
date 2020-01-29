@@ -3,10 +3,20 @@
 SEDCMD='s/\\citation{\(.*\)}/\1/p'
 KEYPAT='^[0-9]\{4\}[A-Za-z][&.0-9A-Za-z]\{12\}[0-9][A-Z]$'
 
+function ckcmd {
+	if [ ! $(type -P "$1") ]; then
+		echo "\`$1\` not found.  EXIT"
+		exit 1
+	fi
+}
+
 if [ $# -ne 1 ]; then
 	echo "usage: $0 <doc.aux>"
 	exit 0
 fi
+
+ckcmd curl
+ckcmd jq
 
 NAME=${1%.aux}
 ADSKEY=${ADSKEY:-$(head -n1 ~/.adsbibrc)}
