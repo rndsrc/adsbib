@@ -2,7 +2,7 @@
 
 # Define patterns
 SEDCMD='s/\\citation{\(.*\)}/\1/p'
-KEYPAT='^[0-9]\{4\}[A-Za-z][&.0-9A-Za-z]\{12\}[0-9][A-Z]$'
+KEYPAT='^[0-9]\{4\}[A-Za-z][&.0-9A-Za-z]\{12\}[0-9A-Z][A-Z]$'
 
 # Check if we have the necessary tools
 function ckcmd {
