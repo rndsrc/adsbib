@@ -36,9 +36,9 @@ fi
 rm -f "${NAME}.tmp" "${NAME}.tmp2"
 
 KEYS=$(echo $KEYS | tr ' ' ',')
-curl	-H "Authorization: Bearer:${ADSKEY}"                 \
-	-H 'Content-Type: application/json'                  \
-	   'https://api.adsabs.harvard.edu/v1/export/bibtex' \
-	-X POST                                              \
-	-d "{\"bibcode\": [${KEYS}]}"                       |\
+curl	-H "Authorization: Bearer ${ADSKEY}"                    \
+	-H 'Content-Type: application/json'                     \
+	   'https://api.adsabs.harvard.edu/v1/export/bibtexabs' \
+	-X POST                                                 \
+	-d "{\"bibcode\": [${KEYS}]}"                          |\
 jq -r '.export' > "${NAME}.bib"
